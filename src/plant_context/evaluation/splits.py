@@ -110,6 +110,20 @@ def make_forward_year_split(
     before the test year becomes validation and every earlier year becomes
     train, so ``max(train_year) < min(validation_year) < min(test_year)``
     holds by construction (TDD Section 4.3, 10.3).
+
+    ``seed`` is recorded into the output's ``seed`` column for schema
+    consistency with the other three split functions, but it does not
+    change the fold assignment: chronological order has no randomness to
+    seed. Do not report "n=k seeds" statistics for forward_year results
+    without accounting for this -- running this function with k different
+    seed values produces k byte-identical splits, not k independent
+    resamples. (This is exactly the gap the SRG-GxE audit found in its own
+    forward_year/leave_year splits after the fact; see
+    docs/srg_gxe_audit_2026-07-29.md. Any variance observed across "seeds"
+    on this split type is model-initialization noise, not
+    train/test-resampling variance -- report it as such, or use a
+    seed-sensitive design like a genuine leave-year-out CV if independent
+    replicates across years are actually needed.)
     """
     years = sorted(df["year"].unique())
     if len(years) < 3:

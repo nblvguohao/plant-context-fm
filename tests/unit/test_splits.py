@@ -49,6 +49,19 @@ def test_forward_year_split_requires_at_least_three_years(synthetic_gxe_df):
         make_forward_year_split(only_two_years, seed=1234, split_version="test")
 
 
+def test_forward_year_split_is_identical_regardless_of_seed(synthetic_gxe_df):
+    # Chronological order has no randomness to seed: three different seed
+    # values must produce byte-identical splits (aside from the recorded
+    # `seed` column itself). Anyone reporting "n=3 seeds" for forward_year
+    # results is really reporting n=1 -- see the SRG-GxE audit finding this
+    # documents in splits.py's docstring.
+    a = make_forward_year_split(synthetic_gxe_df, seed=1, split_version="test").drop(columns=["seed"])
+    b = make_forward_year_split(synthetic_gxe_df, seed=2, split_version="test").drop(columns=["seed"])
+    c = make_forward_year_split(synthetic_gxe_df, seed=3, split_version="test").drop(columns=["seed"])
+    pd.testing.assert_frame_equal(a, b)
+    pd.testing.assert_frame_equal(a, c)
+
+
 def test_leave_ge_split_satisfies_contract(synthetic_gxe_df):
     split_df = make_leave_ge_split(synthetic_gxe_df, n_folds=3, seed=1234, split_version="test")
     assert validate_split_table(split_df) == []
