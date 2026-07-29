@@ -3,6 +3,7 @@ data/external/
 data/raw/
 data/processed/
 data/interim/
+data/community/
 !data/manifests/*.json
 !data/manifests/*.yaml
 
