@@ -1,14 +1,20 @@
 # Data and derived artifacts (never committed; see data/README.md for provenance policy)
-data/external/
-data/raw/
-data/processed/
-data/interim/
-data/community/
+# No trailing slash on these: in this worktree they are real directories,
+# but in a parallel git-worktree branch (e.g. community-track) the same
+# paths are symlinks back to this checkout, and a trailing-slash pattern
+# only matches real directories, not a symlink of the same name -- found
+# when a second worktree's `data/community` etc. showed up as untracked
+# instead of ignored.
+data/external
+data/raw
+data/processed
+data/interim
+data/community
 !data/manifests/*.json
 !data/manifests/*.yaml
 
 # Code checkouts referenced by symlink, never committed as content
-external/
+external
 
 # Server / machine-specific config — must never leak host, IP, or username
 docs/server_local.md
