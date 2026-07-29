@@ -25,9 +25,13 @@ other projects on this machine. Instead:
   `data/processed/` outputs (phenotype/genotype/environment/weather tables,
   splits, residual targets). They are the canonical processed data for this
   machine; nothing here re-derives them independently.
-- Plant community/vegetation-plot data (e.g. sPlotOpen) is not yet present on
-  this machine and must be obtained separately before Paper 1/2 work can
-  start; see `docs/data_inventory.md` (to be created) once it lands.
+- Plant community/vegetation-plot data is now present: sPlotOpen (95,104 plots,
+  42,677 species, CC BY 4.0, downloaded 2026-07-29) under `data/community/raw`
+  (original archive) and `data/community/extracted` (unzipped tables), both
+  git-ignored. Provenance, DOI, checksum, and citation requirements are frozen
+  in `data/manifests/community_sPlotOpen.yaml` (tracked). No adapter or split
+  has been built against it yet — see the manifest's `todo` section before
+  starting Paper 1/2 work.
 
 Everything under `external/` and `data/external/` is git-ignored: this
 repository never commits paths, filenames, or directory layouts belonging to

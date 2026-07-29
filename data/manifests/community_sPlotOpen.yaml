@@ -1,0 +1,76 @@
+dataset: sPlotOpen
+title: "sPlotOpen -- An environmentally-balanced, open-access, global dataset of vegetation plots"
+authors: [Francesco Maria Sabatini, Jonathan Lenoir, Helge Bruelheide]
+paper_doi: 10.1111/geb.13346
+data_repository: iDiv Data Repository (BEXIS2)
+data_page: https://idata.idiv.de/ddm/Data/ShowData/3474
+dataset_doi: 10.25829/idiv.3474-bb7k72
+dataset_id: 3474
+version: 76
+version_id: 5806
+version_date: "2023-03-07"
+download_date: "2026-07-29"
+downloaded_by: ANONYMOUS
+download_method: anonymous HTTPS GET, no login/registration required
+license: CC BY 4.0
+citation_requirement: >
+  Cite Sabatini et al. 2021 (GEB) for the compiled dataset. Additionally,
+  when analysis draws on specific contributing databases (notably BioTIME
+  and other GIVD-registered sources), cite those original sources per
+  sPlotOpen_references.bib. Do not claim the compiled dataset as if it were
+  a single primary source.
+
+archive:
+  path: data/community/raw/sPlotOpen_dataset3474_v5806.zip
+  sha256: b34165d54394b6fb30a5180f31deb435f686aa4a7ffc20a7abec13f34b6e06b7
+  size_bytes: 105479235
+
+extracted_files:
+  - name: sPlotOpen_header(3).txt
+    role: plot-level metadata (one row per PlotObservationID)
+    rows: 95104
+    key_columns: [PlotObservationID, GIVD_ID, Dataset, Continent, Country, Biome,
+      Date_of_recording, Latitude, Longitude, Location_uncertainty, Releve_area,
+      Elevation, is_forest, Naturalness, Forest, Shrubland, Grassland, Wetland,
+      Sparse_vegetation, Cover_total, SoilClim_PC1, SoilClim_PC2,
+      Resample_1, Resample_2, Resample_3, Resample_1_consensus]
+  - name: sPlotOpen_DT(2).txt
+    role: species composition long table (one row per species-in-plot occurrence)
+    rows: 1943306
+    key_columns: [PlotObservationID, Species, Original_species, Original_abundance,
+      Abundance_scale, Relative_cover]
+  - name: sPlotOpen_CWM_CWV(2).txt
+    role: community-weighted mean/variance of 18 TRY functional traits per plot
+    rows: 95104
+  - name: sPlotOpen_metadata(2).txt
+    role: additional per-source-database metadata
+  - name: sPlotOpen.RData
+    role: R-native bundle of all of the above (header.oa, DT2.oa, CWM_CWV.oa,
+      splot.taxonomy.oa); not required if the .txt tables are used directly
+  - name: sPlotOpen_references.bib
+    role: BibTeX citations for all 105 contributing source databases
+
+dataset_summary:
+  n_plots: 95104
+  n_species: 42677
+  n_countries: 114
+  n_source_databases: 105
+  temporal_range: "1888-2015"
+  spatial_grain_m2: "0.01-40000"
+  note: >
+    Organized as three partially-overlapping, environmentally-balanced
+    ~50,000-plot subsets intended as replicates for global analyses
+    (see paper_doi). Not yet subset or filtered for this project.
+
+todo:
+  - Confirm whether to use the full 95,104-plot table or one balanced subset
+    for the primary Paper 1/2 splits (per TDD data-freezing principles, this
+    choice must be frozen and recorded before any experiment is run).
+  - Build data/plant_context/data/community_adapter.py to convert the .txt
+    tables into the community_plot contract (TDD Section 4.4), mapping
+    PlotObservationID -> plot_id, Species -> species_id (with taxonomy
+    resolution), Original_abundance/Relative_cover -> abundance +
+    abundance_scale, Dataset -> dataset_id.
+  - accepted_taxon_id resolution (TDD 4.4 constraint: species names must map
+    to a frozen taxonomy) is not yet done; sPlotOpen's own taxonomic
+    backbone (see metadata) should be checked before inventing a new one.
