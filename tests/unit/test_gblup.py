@@ -3,7 +3,9 @@ import pandas as pd
 import pytest
 
 from plant_context.statistics.gblup import (
+    compute_allele_frequencies,
     compute_vanraden_grm,
+    compute_vanraden_grm_with_frequencies,
     fit_gblup,
     pivot_genotype_marker_to_wide,
     select_gblup_lambda,
@@ -62,6 +64,34 @@ def test_compute_vanraden_grm_matches_hand_calculation():
         ]
     )
     np.testing.assert_allclose(grm.to_numpy(), expected, atol=1e-8)
+
+
+def test_compute_allele_frequencies_matches_hand_calculation():
+    wide = _hand_computed_grm_fixture()
+    freq = compute_allele_frequencies(wide, max_dosage=2.0)
+    assert freq["m1"] == pytest.approx(0.5)
+    assert freq["m2"] == pytest.approx(0.5)
+
+
+def test_compute_vanraden_grm_with_frequencies_matches_convenience_wrapper():
+    wide = _hand_computed_grm_fixture()
+    freq = compute_allele_frequencies(wide, max_dosage=2.0)
+    grm_a = compute_vanraden_grm_with_frequencies(wide, freq, max_dosage=2.0)
+    grm_b = compute_vanraden_grm(wide, max_dosage=2.0)
+    pd.testing.assert_frame_equal(grm_a, grm_b)
+
+
+def test_compute_vanraden_grm_with_frequencies_uses_supplied_frequency_not_full_population():
+    wide = _hand_computed_grm_fixture()  # g1, g2, g3; full-population freq is 0.5/0.5
+    # Frequency estimated from only g1+g2 (m1=[0,1], m2=[2,1]) differs from
+    # the full-population frequency (0.5/0.5 across all three genotypes).
+    train_only_freq = compute_allele_frequencies(wide.loc[["g1", "g2"]], max_dosage=2.0)
+    assert train_only_freq["m1"] == pytest.approx(0.25)
+    assert train_only_freq["m2"] == pytest.approx(0.75)
+
+    grm_train_freq = compute_vanraden_grm_with_frequencies(wide, train_only_freq, max_dosage=2.0)
+    grm_full_freq = compute_vanraden_grm(wide, max_dosage=2.0)
+    assert not np.allclose(grm_train_freq.to_numpy(), grm_full_freq.to_numpy())
 
 
 def test_compute_vanraden_grm_is_symmetric():

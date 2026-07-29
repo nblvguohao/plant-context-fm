@@ -14,7 +14,8 @@ import pandas as pd
 
 from plant_context.statistics.crossfit import FitPredictFn
 from plant_context.statistics.gblup import (
-    compute_vanraden_grm,
+    compute_allele_frequencies,
+    compute_vanraden_grm_with_frequencies,
     fit_gblup,
     pivot_genotype_marker_to_wide,
     select_gblup_lambda,
@@ -44,17 +45,26 @@ def make_gblup_predict_fn(
     n_folds: int = 5,
     seed: int = 1234,
 ) -> FitPredictFn:
-    """Build a GBLUP fit_predict_fn, computing the GRM once up front.
+    """Build a GBLUP fit_predict_fn.
 
-    The GRM depends only on genotype markers, not on any split, so it is
-    safe to compute it once outside the per-fold loop; lambda selection and
-    fitting still happen fresh per fold, using only that fold's train rows.
+    The wide dosage matrix (every genotype's raw markers) is pivoted once
+    up front -- that alone carries no train/test distinction. But the
+    allele-frequency centering used to build the GRM *is* a train-only
+    statistic (see gblup.py's module docstring), so it -- and therefore the
+    GRM itself -- is recomputed fresh inside the per-fold closure from that
+    fold's train genotypes only, before being applied to the full dosage
+    matrix (which is what lets held-out genotypes still get a relatedness-
+    based prediction).
     """
-    wide = pivot_genotype_marker_to_wide(genotype_marker_df)
-    grm = compute_vanraden_grm(wide, max_dosage=max_dosage)
+    wide_full = pivot_genotype_marker_to_wide(genotype_marker_df)
     grid = lambda_grid or [0.1, 0.5, 1.0, 2.0, 5.0, 10.0]
 
     def _fit_predict(train_rows: pd.DataFrame, eval_rows: pd.DataFrame) -> np.ndarray:
+        train_genotype_ids = set(train_rows["genotype_id"])
+        wide_train = wide_full.loc[wide_full.index.isin(train_genotype_ids)]
+        allele_freq = compute_allele_frequencies(wide_train, max_dosage)
+        grm = compute_vanraden_grm_with_frequencies(wide_full, allele_freq, max_dosage)
+
         y_train = train_rows.groupby("genotype_id")["phenotype_value"].mean()
         y_train = y_train.reindex(grm.index)
         lam = select_gblup_lambda(grm, y_train, grid, n_folds=n_folds, seed=seed)

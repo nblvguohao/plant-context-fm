@@ -10,6 +10,15 @@ predicts held-in and held-out genotypes alike.
 Lambda (the ridge/shrinkage penalty, equivalent to sigma_e^2/sigma_g^2) is
 chosen by cross-validation restricted to whatever training genotypes are
 passed in -- never anything from an outer test fold (TDD Section 8.3).
+
+The GRM's allele-frequency centering is also a train-only statistic (TDD
+8.3 lists "LD block parameters" among the things that must be fit on outer
+training data only; allele-frequency centering is the same kind of
+parameter and follows the same rule): estimating it from all genotypes,
+including outer-test ones, would let test genotypes' dosage subtly
+influence the relatedness matrix used to predict them. Use
+``compute_allele_frequencies`` on a training-only subset, then
+``compute_vanraden_grm_with_frequencies`` for the full population.
 """
 
 from __future__ import annotations
@@ -35,25 +44,52 @@ def pivot_genotype_marker_to_wide(genotype_marker_df: pd.DataFrame) -> pd.DataFr
     return wide
 
 
-def compute_vanraden_grm(genotype_wide: pd.DataFrame, max_dosage: float) -> pd.DataFrame:
-    """VanRaden method-1 genomic relationship matrix.
+def compute_allele_frequencies(genotype_wide: pd.DataFrame, max_dosage: float) -> pd.Series:
+    """Per-marker allele frequency, estimated from the genotypes passed in.
+
+    Restrict this to training genotypes only when the resulting GRM will be
+    used for prediction under an outer split (see module docstring).
+    """
+    return genotype_wide.mean(axis=0) / max_dosage
+
+
+def compute_vanraden_grm_with_frequencies(
+    genotype_wide_full: pd.DataFrame, allele_freq: pd.Series, max_dosage: float
+) -> pd.DataFrame:
+    """VanRaden method-1 GRM for every genotype in ``genotype_wide_full``,
+    using a pre-computed allele-frequency vector rather than re-estimating
+    frequencies from whichever genotypes happen to be in
+    ``genotype_wide_full`` -- see ``compute_allele_frequencies``.
 
     ``max_dosage`` is the ploidy scale the allele_dosage column is on (2 for
     a raw diploid 0/1/2 count, 1 if it has already been divided by ploidy).
-    This is deliberately a required argument rather than a silently assumed
-    default: get it wrong and every relatedness value is wrong.
     """
-    M = genotype_wide.to_numpy(dtype=float)
-    p = M.mean(axis=0) / max_dosage
+    M = genotype_wide_full.to_numpy(dtype=float)
+    p = allele_freq.reindex(genotype_wide_full.columns).to_numpy()
     Z = M - max_dosage * p
     denom = max_dosage * float(np.sum(p * (1 - p)))
     if denom <= 0:
         raise ValueError(
             "VanRaden GRM denominator is non-positive -- markers may be "
-            "non-segregating (all genotypes identical at every marker)"
+            "non-segregating in the population the allele frequency was "
+            "estimated from"
         )
     G = (Z @ Z.T) / denom
-    return pd.DataFrame(G, index=genotype_wide.index, columns=genotype_wide.index)
+    return pd.DataFrame(G, index=genotype_wide_full.index, columns=genotype_wide_full.index)
+
+
+def compute_vanraden_grm(genotype_wide: pd.DataFrame, max_dosage: float) -> pd.DataFrame:
+    """Convenience wrapper: estimate allele frequency and compute the GRM
+    from the SAME set of genotypes in ``genotype_wide``.
+
+    Only appropriate when there is no train/test distinction to worry about
+    (a single frozen population, or a test fixture). For use inside an
+    outer-fold evaluation, call ``compute_allele_frequencies`` on the
+    training genotypes only, then ``compute_vanraden_grm_with_frequencies``
+    on the full genotype set with that frequency vector.
+    """
+    freq = compute_allele_frequencies(genotype_wide, max_dosage)
+    return compute_vanraden_grm_with_frequencies(genotype_wide, freq, max_dosage)
 
 
 def fit_gblup(grm: pd.DataFrame, y_train: pd.Series, lambda_: float) -> pd.Series:
