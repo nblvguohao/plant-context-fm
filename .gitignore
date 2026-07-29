@@ -1,0 +1,40 @@
+# Data and derived artifacts (never committed; see data/README.md for provenance policy)
+data/external/
+data/raw/
+data/processed/
+data/interim/
+!data/manifests/*.json
+!data/manifests/*.yaml
+
+# Code checkouts referenced by symlink, never committed as content
+external/
+
+# Server / machine-specific config — must never leak host, IP, or username
+docs/server_local.md
+.env
+*.local.yaml
+*.local.yml
+
+# Experiment outputs, checkpoints, logs
+outputs/
+reports/figures/
+checkpoints/
+logs/
+wandb/
+lightning_logs/
+*.ckpt
+*.pt
+*.pth
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
