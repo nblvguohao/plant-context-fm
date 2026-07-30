@@ -71,6 +71,8 @@ class SharedEnvironmentEncoder(nn.Module):
         d_model: int = 32,
         n_heads: int = 4,
         n_layers: int = 2,
+        dim_feedforward: int = 64,
+        dropout: float = 0.1,
         stage_names: Optional[Sequence[str]] = None,
     ):
         super().__init__()
@@ -79,13 +81,25 @@ class SharedEnvironmentEncoder(nn.Module):
             d_model=d_model,
             n_heads=n_heads,
             n_layers=n_layers,
+            dim_feedforward=dim_feedforward,
+            dropout=dropout,
         )
         self.stage_names = list(stage_names) if stage_names is not None else []
         self._d_model = d_model
+        self._n_layers = n_layers
+        self._n_heads = n_heads
 
     @property
     def d_model(self) -> int:
         return self._d_model
+
+    @property
+    def n_layers(self) -> int:
+        return self._n_layers
+
+    @property
+    def n_heads(self) -> int:
+        return self._n_heads
 
     def forward(
         self,
