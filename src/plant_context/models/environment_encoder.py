@@ -219,6 +219,7 @@ def pretrain_environment_encoder(
     seed: int = 1234,
     d_model: int = 32,
     encoder: Optional[SharedEnvironmentEncoder] = None,
+    device: str = "cpu",
 ) -> dict:
     """Pretrain a ``SharedEnvironmentEncoder`` via masked stage
     reconstruction on environment-stage data (weather or community).
@@ -279,6 +280,7 @@ def pretrain_environment_encoder(
         lr=lr,
         seed=seed,
         encoder=enc.encoder,
+        device=device,
     )
 
     # Replace the generic encoder with a SharedEnvironmentEncoder wrapping
@@ -344,6 +346,7 @@ def bridge_transfer_experiment(
     pretrain_epochs: int = 30,
     finetune_epochs: int = 50,
     seed: int = 1234,
+    device: str = "cpu",
 ) -> dict:
     """Run a bridge transfer experiment: pretrain on community-derived
     features → fine-tune on weather-derived features.
@@ -388,6 +391,7 @@ def bridge_transfer_experiment(
         epochs=pretrain_epochs,
         lr=0.01,
         seed=seed,
+        device=device,
     )
 
     # Phase 2: fine-tune on weather features starting from community weights
@@ -399,6 +403,7 @@ def bridge_transfer_experiment(
         lr=0.005,  # lower LR for fine-tuning
         seed=seed + 1,
         encoder=community_result["encoder"],
+        device=device,
     )
 
     return {

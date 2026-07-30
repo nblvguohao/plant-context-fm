@@ -92,8 +92,12 @@ plant-context-fm/
       masking.py
     models/
       context_encoder.py
+      environment_encoder.py
+      genotype_encoder.py
       community_model.py
       gxe_model.py
+      transfer_diagnosis.py
+      association_head.py
       uncertainty.py
     statistics/
       spatial_adjustment.py
@@ -109,6 +113,7 @@ plant-context-fm/
     evaluation/
       splits.py
       metrics.py
+      power_analysis.py
       calibration.py
       error_atlas.py
     tracking/

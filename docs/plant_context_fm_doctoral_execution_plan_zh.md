@@ -205,7 +205,7 @@
 
 ### 5.1 核心数据
 
-- 群落：优先使用 sPlotOpen/公开植被样方建立可复现实验；EVA 仅在获得授权后作为扩展。**当前状态（2026-07-30）：sPlotOpen 数据尚未完成下载与适配；若 P0 结束（M1）前无法获得合法可用的公开群落数据，将启动备选公开数据集（如 GBIF 衍生样方、FIA 等）并调整 Paper 1 范围。**
+- 群落：优先使用 sPlotOpen/公开植被样方建立可复现实验；EVA 仅在获得授权后作为扩展。**当前状态（2026-07-30）：sPlotOpen v76（dataset_id 3474, version_id 5806）已下载并适配， manifest 见 `data/manifests/community_sPlotOpen.yaml`，适配器见 `src/plant_context/data/community_adapter.py`。是否使用全表 95,104 样方或三个平衡子集之一进行 Paper 1/2 的冻结划分，仍需在 M1 结束前决定。**
 - 玉米：G2F 2014–2023 表型、天气、土壤、管理和 437k SNP。
 - 外部验证：CIMMYT 小麦 3,731 品系 × 9,045 SNP × 4 环境。
 
