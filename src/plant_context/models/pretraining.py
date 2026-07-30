@@ -105,6 +105,11 @@ def pretrain_masked_reconstruction(
     )
     n_samples, max_len, n_features = features.shape
 
+    # Replace NaN with 0 so that a missing feature within a non-padding
+    # token does not poison the encoder. The missingness is still visible
+    # in the original per_sample_tokens; here we need finite inputs.
+    features = np.nan_to_num(features, nan=0.0)
+
     mask_positions = np.zeros((n_samples, max_len), dtype=bool)
     for i, token_ids in enumerate(token_ids_per_sample):
         # `seed` passed as a keyword: a caller typically binds mask_fraction

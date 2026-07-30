@@ -27,6 +27,8 @@ pytestmark = pytest.mark.skipif(
 def g2f_genotype_and_train_ids():
     genotype_df = load_g2f_genotype_marker(G2F_ROOT)
     phenotype_df = load_g2f_phenotype_plot(G2F_ROOT)
+    if len(genotype_df) == 0:
+        pytest.skip("genotype.parquet is empty placeholder (raw VCF not yet parsed)")
     split_df = make_leave_genotype_split(phenotype_df, n_folds=5, seed=1234, split_version="smoke")
     fold0 = split_df[
         (split_df["outer_split_type"] == "leave_genotype") & (split_df["outer_fold"] == 0)

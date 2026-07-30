@@ -43,6 +43,9 @@ def g2f_gxe_fixture():
     genotype_df = load_g2f_genotype_marker(G2F_ROOT)
     environment_daily_df = load_g2f_environment_daily(G2F_ROOT)
 
+    if len(genotype_df) == 0:
+        pytest.skip("genotype.parquet is empty placeholder (raw VCF not yet parsed)")
+
     rng = np.random.default_rng(1234)
     all_genotypes = sorted(set(phenotype_df["genotype_id"]) & set(genotype_df["genotype_id"]))
     subset_genotypes = set(rng.choice(all_genotypes, size=min(150, len(all_genotypes)), replace=False))
