@@ -1,0 +1,25 @@
+# Paper 3: Full-scale G×E baseline — config
+data:
+  g2f_root: "data/external/g2f"
+  n_genotypes: null          # null = ALL genotypes
+  n_folds: 3
+  seed: 1234
+
+models:
+  - name: "environment_mean"
+    params: {}
+  - name: "gblup"
+    params:
+      max_dosage: 1.0
+      lambda_grid: [1.0]    # single fixed lambda — no inner CV
+      n_inner_folds: 2
+
+splits:
+  - "leave_genotype"
+  - "leave_environment"
+  - "forward_year"
+  - "leave_ge"
+
+output:
+  dir: "experiments/paper3_gxe_prediction/results_full"
+  results_file: "gxe_baseline_full.csv"

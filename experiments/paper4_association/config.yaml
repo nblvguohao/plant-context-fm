@@ -1,0 +1,23 @@
+# Paper 4: Association experiments — config (full scale)
+data:
+  g2f_root: "data/external/g2f"
+  n_genotypes: null           # null = ALL genotypes
+  seed: 1234
+
+simulation:
+  n_simulations: 100
+  n_genotypes_null: 100
+  n_blocks_null: 20
+  n_genotypes_power: 100
+  n_blocks_power: 20
+  n_associated_blocks: 2
+  effect_size: 1.5
+
+association:
+  n_folds: 3
+  fdr_threshold: 0.05
+
+output:
+  dir: "experiments/paper4_association/results"
+  simulation_file: "association_simulation.csv"
+  g2f_scan_file: "g2f_association_scan.csv"

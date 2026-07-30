@@ -1,0 +1,34 @@
+# Paper 3: G×E baseline benchmark — config
+# All paths relative to project root (where this config is loaded from)
+data:
+  g2f_root: "data/external/g2f"
+  n_genotypes: 150          # null = use all genotypes
+  n_folds: 3
+  seed: 1234
+
+models:
+  - name: "environment_mean"
+    params: {}
+  - name: "gblup"
+    params:
+      max_dosage: 1.0
+      lambda_grid: [0.01, 0.1, 0.5, 1.0, 5.0, 10.0]
+      n_inner_folds: 3
+  - name: "reaction_norm"
+    params: {}
+  - name: "low_rank_gxe"
+    params:
+      rank: 4
+      hidden: 16
+      epochs: 150
+      lr: 0.01
+
+splits:
+  - "leave_genotype"
+  - "leave_environment"
+  - "forward_year"
+  - "leave_ge"
+
+output:
+  dir: "experiments/paper3_gxe_prediction/results"
+  results_file: "gxe_baseline_results.csv"

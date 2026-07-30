@@ -1,0 +1,135 @@
+dataset: sPlotOpen
+title: "sPlotOpen -- An environmentally-balanced, open-access, global dataset of vegetation plots"
+authors: [Francesco Maria Sabatini, Jonathan Lenoir, Helge Bruelheide]
+paper_doi: 10.1111/geb.13346
+data_repository: iDiv Data Repository (BEXIS2)
+data_page: https://idata.idiv.de/ddm/Data/ShowData/3474
+dataset_doi: 10.25829/idiv.3474-bb7k72
+dataset_id: 3474
+version: 76
+version_id: 5806
+version_date: "2023-03-07"
+download_date: "2026-07-29"
+downloaded_by: ANONYMOUS
+download_method: anonymous HTTPS GET, no login/registration required
+license: CC BY 4.0
+citation_requirement: >
+  Cite Sabatini et al. 2021 (GEB) for the compiled dataset. Additionally,
+  when analysis draws on specific contributing databases (notably BioTIME
+  and other GIVD-registered sources), cite those original sources per
+  sPlotOpen_references.bib. Do not claim the compiled dataset as if it were
+  a single primary source.
+
+archive:
+  path: data/community/raw/sPlotOpen_dataset3474_v5806.zip
+  sha256: b34165d54394b6fb30a5180f31deb435f686aa4a7ffc20a7abec13f34b6e06b7
+  size_bytes: 105479235
+
+extracted_files:
+  - name: sPlotOpen_header(3).txt
+    role: plot-level metadata (one row per PlotObservationID)
+    rows: 95104
+    key_columns: [PlotObservationID, GIVD_ID, Dataset, Continent, Country, Biome,
+      Date_of_recording, Latitude, Longitude, Location_uncertainty, Releve_area,
+      Elevation, is_forest, Naturalness, Forest, Shrubland, Grassland, Wetland,
+      Sparse_vegetation, Cover_total, SoilClim_PC1, SoilClim_PC2,
+      Resample_1, Resample_2, Resample_3, Resample_1_consensus]
+  - name: sPlotOpen_DT(2).txt
+    role: species composition long table (one row per species-in-plot occurrence)
+    rows: 1943306
+    key_columns: [PlotObservationID, Species, Original_species, Original_abundance,
+      Abundance_scale, Relative_cover]
+  - name: sPlotOpen_CWM_CWV(2).txt
+    role: community-weighted mean/variance of 18 TRY functional traits per plot
+    rows: 95104
+  - name: sPlotOpen_metadata(2).txt
+    role: additional per-source-database metadata
+  - name: sPlotOpen.RData
+    role: R-native bundle of all of the above (header.oa, DT2.oa, CWM_CWV.oa,
+      splot.taxonomy.oa); not required if the .txt tables are used directly
+  - name: sPlotOpen_references.bib
+    role: BibTeX citations for all 105 contributing source databases
+
+dataset_summary:
+  n_plots: 95104
+  n_species: 42677
+  n_countries: 114
+  n_source_databases: 105
+  temporal_range: "1888-2015"
+  spatial_grain_m2: "0.01-40000"
+  note: >
+    Organized as three partially-overlapping, environmentally-balanced
+    ~50,000-plot subsets intended as replicates for global analyses
+    (see paper_doi). Not yet subset or filtered for this project.
+
+todo:
+  - Confirm whether to use the full 95,104-plot table or one balanced subset
+    for the primary Paper 1/2 splits (per TDD data-freezing principles, this
+    choice must be frozen and recorded before any experiment is run). Still
+    open -- src/plant_context/data/community_adapter.py always returns the
+    full table today; subsetting by Resample_1/_2/_3 is left to callers.
+
+  - |
+    [DONE] Built src/plant_context/data/community_adapter.py (community_plot
+    contract, TDD 4.4) and src/plant_context/tokenizers/community.py
+    (CommunityTokenizer token metadata, TDD 5.1), with
+    tests/unit/test_community_adapter.py, tests/unit/test_community_tokenizer.py,
+    tests/integration/test_splotopen_adapter_integration.py, and
+    tests/integration/test_splotopen_tokenizer_integration.py. Findings that
+    corrected/refined the mapping this list originally sketched:
+
+    1. accepted_taxon_id resolution question (previous item, "should be
+       checked before inventing a new one"): verified directly by inspecting
+       every DT row where Species != Original_species (not just spot checks).
+       Original_species retains subspecies/variety epithets and bracketed
+       aggregate notation as recorded by the original contributor (e.g.
+       "Luzula arcuata subsp. unalaschkensis", "Cardamine bellidifolia [s.
+       bellidifolia]"); Species is always a clean, coarser name. So: Species
+       -> accepted_taxon_id (resolved/frozen taxon), Original_species ->
+       species_id (as-recorded) -- the reverse of this list's original
+       "Species -> species_id" sketch. sPlotOpen's own harmonization is the
+       taxonomy source (Sabatini et al. 2021, GEB); no separate,
+       independently-versioned taxonomic-backbone identifier is published in
+       the extracted files, so tokenizers/community.py's TAXONOMY_SOURCE
+       constant uses this manifest's own dataset version (v76 / version_id
+       5806) as a documented proxy rather than inventing one.
+
+    2. dataset_id is the literal constant "sPlotOpen" (the compiled dataset),
+       not header's Dataset column -- the reverse of this list's original
+       "Dataset -> dataset_id" sketch. Dataset (source database name, e.g.
+       "Aava") and GIVD_ID (its registry code) are preserved instead as
+       extra, non-contract-required columns source_database and
+       source_database_givd_id, joined in from the header table.
+
+    3. Relative_cover is preserved as an extra relative_cover column
+       alongside abundance (from Original_abundance) and abundance_scale
+       (from Abundance_scale), per TDD 4.4's "raw abundance and unified
+       scale both kept."
+
+    4. 1,678 of 1,943,306 DT rows have a null Species and are dropped (no
+       honest accepted_taxon_id available); every one of the 95,104 header
+       plots still has at least one resolved species row, so no plot is lost
+       overall (verified: adapter output is exactly 1,941,628 rows across
+       exactly 95,104 plots).
+
+    5. 21,489 DT rows are a repeated (PlotObservationID, Species) pair within
+       one plot (e.g. two different original subspecies names or vegetation
+       layers resolving to the same species) -- kept as separate rows, not
+       deduplicated; community_plot has no uniqueness constraint on this
+       pair.
+
+    6. genus is derived from accepted_taxon_id by a naive first-token string
+       split (documented in tokenizers/community.py as a heuristic, not a
+       validated taxonomic lookup); a small number of accepted_taxon_id
+       values are themselves single-word family names (e.g. "Asteraceae"),
+       which this heuristic cannot distinguish from a genus-level ID. family
+       is not computed at all (no real per-species family source in the
+       integrated files) -- left explicitly null rather than fabricated.
+
+    7. habitat_label (TDD 4.4 mentions it) and native/introduced status (TDD
+       5.1 mentions it) are not implemented: contracts.py's
+       COMMUNITY_PLOT_SCHEMA does not actually require habitat_label, and
+       sPlotOpen's Forest/Shrubland/Grassland/Wetland columns are continuous
+       cover estimates, not a categorical expert/rule/model label --
+       inventing one was judged out of scope for this pass rather than done
+       here.

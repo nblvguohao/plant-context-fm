@@ -1,0 +1,60 @@
+# Data directories: per CLAUDE.md, only manifests and contracts/schemas are tracked
+data/raw/
+data/processed/
+data/interim/
+data/external/
+data/community/raw/
+data/community/extracted/
+!data/manifests/
+!data/contracts/
+!data/manifests/*.yaml
+!data/manifests/*.json
+!data/contracts/*
+!data/*/.gitkeep
+
+# Server-local notes (may contain host paths, IPs, credentials)
+docs/server_local.md
+
+# Sibling project symlink
+external/
+
+# Backup and temporary files
+*.bak
+*~
+_tmp_*.py
+
+# Claude Code internal state
+.claude/
+
+# Experimental outputs (scripts are code; results/logs are generated)
+experiments/**/results/
+experiments/**/results_full/
+experiments/**/*.log
+
+# Python build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+.venv/
+
+# Jupyter notebooks outputs (exploration only per TDD)
+notebooks/
+
+# Test cache
+.pytest_cache/
+.coverage
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+build/

@@ -1,0 +1,17 @@
+# Bridge experiment: community → G×E transfer — config
+data:
+  g2f_root: "data/external/g2f"
+  community_root: "data/community/extracted"
+  n_genotypes: 150
+  seed: 1234
+
+bridge:
+  feature_col: "genus"
+  agg: "presence"
+  pretrain_epochs: 30
+  finetune_epochs: 30
+  d_model: 32
+
+output:
+  dir: "experiments/bridge_experiments/results"
+  transfer_file: "bridge_transfer_results.csv"
