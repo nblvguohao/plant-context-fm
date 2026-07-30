@@ -14,6 +14,7 @@ import pytest
 from plant_context.tokenizers.environment import (
     STAGE_ORDER,
     assign_growth_stage,
+    audit_phenological_date_coverage,
     compute_gdd,
     compute_vpd,
     tokenize_environment_stages,
@@ -168,3 +169,48 @@ def test_tokenize_environment_stages_skips_missing_values_without_fabricating():
     # a mean that treats the missing value as 0 or otherwise fabricates it.
     assert stage_row["tmax_mean"] == pytest.approx(20.0)
     assert stage_row["missing_fraction"] == pytest.approx(1 / 3)
+
+
+def test_audit_phenological_date_coverage_reports_estimated_method():
+    df = _single_environment_series([20.0] * 10, [10.0] * 10)
+    report = audit_phenological_date_coverage(df)
+
+    assert report["n_environments"] == 1
+    assert report["stage_estimation_method"] == "gdd_rule"
+    assert report["fraction_estimated"] == 1.0
+    assert report["fraction_observed"] == 0.0
+
+
+def test_audit_phenological_date_coverage_counts_multiple_environments():
+    env1 = _single_environment_series([20.0] * 5, [10.0] * 5)
+    env2 = _single_environment_series([25.0] * 5, [15.0] * 5)
+    env2["environment_id"] = "E2"
+    df = pd.concat([env1, env2], ignore_index=True)
+
+    report = audit_phenological_date_coverage(df)
+    assert report["n_environments"] == 2
+
+
+def test_audit_phenological_date_coverage_reports_stage_boundary_distribution():
+    df = _single_environment_series([25.0 + i for i in range(60)], [15.0 + i * 0.3 for i in range(60)])
+    report = audit_phenological_date_coverage(df)
+
+    assert "stage_boundary_days" in report
+    assert "stage_boundary_gdd" in report
+    # With default thresholds, we should see multiple stages.
+    assert len(report["stage_boundary_days"]) > 0
+    assert len(report["stage_boundary_gdd"]) > 0
+
+
+def test_audit_phenological_date_coverage_warns_on_high_estimation_rate():
+    df = _single_environment_series([20.0] * 5, [10.0] * 5)
+    report = audit_phenological_date_coverage(df, estimation_warning_threshold=0.5)
+
+    assert report["high_estimation_rate_warning"] is True
+
+
+def test_audit_phenological_date_coverage_no_warning_when_below_threshold():
+    df = _single_environment_series([20.0] * 5, [10.0] * 5)
+    report = audit_phenological_date_coverage(df, estimation_warning_threshold=1.1)
+
+    assert report["high_estimation_rate_warning"] is False

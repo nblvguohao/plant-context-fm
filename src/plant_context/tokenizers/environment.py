@@ -153,3 +153,77 @@ def tokenize_environment_stages(
     ).reset_index()
     tokens["stage_estimation_method"] = "gdd_rule"
     return tokens
+
+
+def audit_phenological_date_coverage(
+    env_daily_df: pd.DataFrame,
+    stage_gdd_thresholds: Optional[dict] = None,
+    estimation_warning_threshold: float = 0.5,
+) -> dict:
+    """Audit how phenological stage boundaries were determined.
+
+    TDD Section 5.3 requires reporting: the proportion of environments
+    whose stage dates are observed vs estimated, the estimation method,
+    the distribution of estimated boundaries, and a warning if the
+    estimation rate is high enough to cause systematic stage-boundary
+    shifts.
+
+    In the current implementation all stage boundaries are estimated from
+    a GDD rule (``stage_estimation_method == "gdd_rule"``). Future
+    observed-date integration should add a column such as
+    ``stage_boundary_source`` with values "observed" / "estimated" and
+    this audit will then report the observed fraction automatically.
+    """
+    if env_daily_df.empty:
+        return {
+            "n_environments": 0,
+            "stage_estimation_method": None,
+            "fraction_estimated": float("nan"),
+            "fraction_observed": float("nan"),
+            "stage_boundary_days": [],
+            "stage_boundary_gdd": [],
+            "high_estimation_rate_warning": False,
+        }
+
+    n_environments = env_daily_df["environment_id"].nunique()
+
+    # Detect source of stage boundaries. If an explicit source column is
+    # present, use it; otherwise every boundary is assumed to be estimated
+    # from the GDD rule (the only method implemented in this module).
+    if "stage_boundary_source" in env_daily_df.columns:
+        source_counts = env_daily_df.groupby("environment_id")["stage_boundary_source"].first().value_counts()
+        n_observed = int(source_counts.get("observed", 0))
+        n_estimated = int(source_counts.get("estimated", 0))
+        method = "mixed"
+    else:
+        n_observed = 0
+        n_estimated = n_environments
+        method = "gdd_rule"
+
+    fraction_estimated = n_estimated / n_environments if n_environments > 0 else float("nan")
+    fraction_observed = n_observed / n_environments if n_environments > 0 else float("nan")
+
+    # Compute boundary distributions using the same GDD rule the tokenizer uses.
+    staged = assign_growth_stage(
+        env_daily_df,
+        stage_gdd_thresholds=stage_gdd_thresholds,
+    )
+
+    boundary_days = []
+    boundary_gdd = []
+    for env_id, env_df in staged.groupby("environment_id"):
+        env_df = env_df.sort_values("days_after_planting")
+        transitions = env_df["growth_stage"] != env_df["growth_stage"].shift(1)
+        transition_rows = env_df[transitions & (env_df["days_after_planting"] >= 0)]
+        boundary_days.extend(transition_rows["days_after_planting"].dropna().tolist())
+        boundary_gdd.extend(transition_rows["cumulative_gdd"].dropna().tolist())
+
+    return {
+        "n_environments": n_environments,
+        "stage_estimation_method": method,
+        "fraction_estimated": fraction_estimated,
+        "fraction_observed": fraction_observed,
+        "stage_boundary_days": boundary_days,
+        "stage_boundary_gdd": boundary_gdd,
+        "high_estimation_rate_warning": fraction_estimated > estimation_warning_threshold,
+    }
