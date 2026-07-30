@@ -218,6 +218,7 @@ def pretrain_environment_encoder(
     lr: float = 0.01,
     seed: int = 1234,
     d_model: int = 32,
+    encoder: Optional[SharedEnvironmentEncoder] = None,
 ) -> dict:
     """Pretrain a ``SharedEnvironmentEncoder`` via masked stage
     reconstruction on environment-stage data (weather or community).
@@ -226,17 +227,30 @@ def pretrain_environment_encoder(
     masked with a contiguous run (``mask_contiguous_run``) so that the
     encoder must learn inter-stage structure.
 
+    ``encoder`` may be a pre-initialised ``SharedEnvironmentEncoder`` for
+    fine-tuning from a pretrained checkpoint. If None, a fresh encoder is
+    created.
+
     Returns a dict with ``encoder`` (SharedEnvironmentEncoder), ``head``,
     ``loss_history``, ``final_loss``, ``collapse_diagnostics``.
     """
     n_stage_features = len(feature_columns)
 
+    # Seed before creating the encoder so that a freshly-built encoder has
+    # deterministic initial weights. ``pretrain_masked_reconstruction`` also
+    # seeds internally for mask/dropout determinism.
+    torch.manual_seed(seed)
+
     # Build per-environment tensor internally
-    enc = SharedEnvironmentEncoder(
-        n_stage_features=n_stage_features,
-        d_model=d_model,
-        stage_names=stage_order,
-    )
+    if encoder is None:
+        enc = SharedEnvironmentEncoder(
+            n_stage_features=n_stage_features,
+            d_model=d_model,
+            stage_names=stage_order,
+        )
+    else:
+        enc = encoder
+
     tensor, mask = enc._build_tensor(environment_features, stage_order, feature_columns)
 
     # Pack into the per-sample-tokens format pretrain_masked_reconstruction
@@ -264,6 +278,7 @@ def pretrain_environment_encoder(
         epochs=epochs,
         lr=lr,
         seed=seed,
+        encoder=enc.encoder,
     )
 
     # Replace the generic encoder with a SharedEnvironmentEncoder wrapping
@@ -383,14 +398,8 @@ def bridge_transfer_experiment(
         epochs=finetune_epochs,
         lr=0.005,  # lower LR for fine-tuning
         seed=seed + 1,
+        encoder=community_result["encoder"],
     )
-    # Replace the randomly-initialised encoder with the community-pretrained one
-    finetune_result["encoder"].encoder.load_state_dict(
-        community_result["encoder"].encoder.state_dict()
-    )
-    # Re-run fine-tuning from this initialisation
-    # (we re-use the same structure but with a fresh pretrain call that starts
-    #  from the community weights)
 
     return {
         "shared_environments": len(common_envs),

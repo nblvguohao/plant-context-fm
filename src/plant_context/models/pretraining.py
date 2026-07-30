@@ -23,7 +23,7 @@ request.
 
 from __future__ import annotations
 
-from typing import Callable, Sequence
+from typing import Callable, Optional, Sequence
 
 import numpy as np
 import pandas as pd
@@ -76,6 +76,7 @@ def pretrain_masked_reconstruction(
     lr: float = 0.01,
     seed: int = 1234,
     device: str = "cpu",
+    encoder: Optional[nn.Module] = None,
 ) -> dict:
     """Train a TokenSequenceEncoder with a masked-reconstruction objective.
 
@@ -89,6 +90,10 @@ def pretrain_masked_reconstruction(
     keyword too, and a positional seed would collide whenever it lands on
     the same argument slot), and must return the set of token ids to hide
     from the encoder input and use as the reconstruction target.
+
+    ``encoder`` may be a pre-initialised ``TokenSequenceEncoder`` (or any
+    module with the same forward signature) for fine-tuning from a
+    pretrained checkpoint. If None, a fresh encoder is created.
 
     Returns a dict with the trained encoder, the reconstruction head, the
     loss history, and collapse diagnostics computed on this run's final
@@ -122,10 +127,13 @@ def pretrain_masked_reconstruction(
     # mean), not the true value they are being asked to reconstruct.
     encoder_input[mask_positions] = 0.0
 
-    encoder = TokenSequenceEncoder(
-        n_features=n_features, d_model=d_model, n_heads=n_heads, n_layers=n_layers
-    ).to(device)
-    head = nn.Linear(d_model, n_features).to(device)
+    if encoder is None:
+        encoder = TokenSequenceEncoder(
+            n_features=n_features, d_model=d_model, n_heads=n_heads, n_layers=n_layers
+        ).to(device)
+    else:
+        encoder = encoder.to(device)
+    head = nn.Linear(encoder.d_model if hasattr(encoder, "d_model") else d_model, n_features).to(device)
     optimizer = torch.optim.Adam(list(encoder.parameters()) + list(head.parameters()), lr=lr)
 
     encoder_input_t = torch.tensor(encoder_input, dtype=torch.float32, device=device)
