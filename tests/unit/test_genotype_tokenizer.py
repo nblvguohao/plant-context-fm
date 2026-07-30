@@ -12,6 +12,7 @@ import pytest
 from plant_context.tokenizers.genotype import (
     OOV_BLOCK_ID,
     fit_ld_blocks,
+    fit_ld_blocks_with_fixed_boundaries,
     sort_markers,
     tokenize_genotype_blocks,
 )
@@ -146,3 +147,75 @@ def test_tokenize_genotype_blocks_flags_unseen_marker_as_explicit_oov():
 
     assert len(oov_rows) == len(TRAIN_GENOTYPES)  # one OOV row per genotype
     assert (oov_rows["n_markers"] == 1).all()  # only marker m4 is unseen
+
+
+def test_fit_ld_blocks_with_fixed_boundaries_is_stable_across_folds():
+    """TDD 5.2: block boundaries (e.g. fixed physical windows) must be
+    identical across outer folds; only block-internal LD stats may be
+    re-estimated on the training fold.
+    """
+    df = _known_ld_fixture()
+    genotype_ids = list(df["genotype_id"].unique())
+    fold_a = genotype_ids[:4]
+    fold_b = genotype_ids[4:]
+
+    blocks_a = fit_ld_blocks_with_fixed_boundaries(
+        df, fold_a, window_size_bp=150, max_block_size=10
+    )
+    blocks_b = fit_ld_blocks_with_fixed_boundaries(
+        df, fold_b, window_size_bp=150, max_block_size=10
+    )
+
+    # Boundaries must be identical: same markers, same block IDs, same order.
+    pd.testing.assert_frame_equal(
+        blocks_a[["marker_id", "chromosome", "position", "ld_block_id"]].reset_index(drop=True),
+        blocks_b[["marker_id", "chromosome", "position", "ld_block_id"]].reset_index(drop=True),
+    )
+
+
+def test_fit_ld_blocks_with_fixed_boundaries_respects_chromosome_and_window():
+    df = _known_ld_fixture()
+    blocks = fit_ld_blocks_with_fixed_boundaries(
+        df, TRAIN_GENOTYPES, window_size_bp=250, max_block_size=10
+    )
+
+    # Every block stays within one chromosome.
+    for _, block_rows in blocks.groupby("ld_block_id"):
+        assert block_rows["chromosome"].nunique() == 1
+
+    # Window size 250bp on chr1: positions 100,200 -> block 0; 300,400 -> block 1.
+    chr1 = blocks[blocks["chromosome"] == "S1"].sort_values("position")
+    assert chr1.iloc[0]["ld_block_id"] == chr1.iloc[1]["ld_block_id"]
+    assert chr1.iloc[1]["ld_block_id"] != chr1.iloc[2]["ld_block_id"]
+    assert chr1.iloc[2]["ld_block_id"] == chr1.iloc[3]["ld_block_id"]
+
+
+def test_fit_ld_blocks_with_fixed_boundaries_uses_only_train_genotypes_for_ld_stats():
+    """Even with fixed boundaries, the internal LD statistics (if any are
+    exposed) must be fit only on the supplied training genotypes.
+    """
+    df = _known_ld_fixture()
+    train_only = TRAIN_GENOTYPES[:4]
+
+    blocks = fit_ld_blocks_with_fixed_boundaries(
+        df, train_only, window_size_bp=150, max_block_size=10
+    )
+
+    # The function should not raise and should return one row per marker.
+    assert set(blocks["marker_id"]) == set(df["marker_id"].unique())
+
+
+def test_fit_ld_blocks_with_fixed_boundaries_respects_max_block_size():
+    genotype_ids = TRAIN_GENOTYPES
+    rows = []
+    # 7 markers in a 600bp window with positions 100..700.
+    for i, pos in enumerate(range(100, 800, 100)):
+        rows += _rows_for_marker(genotype_ids, f"m{i}", "S1", pos, PATTERN_A)
+    df = pd.DataFrame(rows)
+
+    blocks = fit_ld_blocks_with_fixed_boundaries(
+        df, genotype_ids, window_size_bp=1000, max_block_size=3
+    )
+    block_sizes = blocks.groupby("ld_block_id").size()
+    assert (block_sizes <= 3).all()
+    assert block_sizes.sum() == 7

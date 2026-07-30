@@ -117,6 +117,83 @@ def fit_ld_blocks(
     return marker_meta.assign(ld_block_id=block_ids)
 
 
+def fit_ld_blocks_with_fixed_boundaries(
+    genotype_marker_df: pd.DataFrame,
+    train_genotype_ids: Iterable[str],
+    window_size_bp: int = 100_000,
+    max_block_size: int = 50,
+) -> pd.DataFrame:
+    """Assign each marker an ``ld_block_id`` using fixed physical windows.
+
+    This is the boundary-stability mode required by TDD Section 5.2:
+    block boundaries (e.g. fixed physical windows or gene windows) should
+    be identical across all outer folds, while block-internal LD statistics
+    are estimated only on ``train_genotype_ids``.
+
+    The returned ``ld_block_id`` depends only on chromosome, physical
+    position, and ``window_size_bp`` -- not on the genotypes in
+    ``train_genotype_ids``. Therefore two folds with the same marker map
+    will produce identical block assignments, making cross-fold comparison
+    and interpretation possible.
+
+    Parameters
+    ----------
+    genotype_marker_df :
+        Long-format genotype/marker table (must contain marker_id, chromosome,
+        position, and genotype_id columns).
+    train_genotype_ids :
+        Training genotype IDs. Currently used only to respect the TDD
+        contract that LD-related fitting must accept a training set; the
+        fixed-boundary assignment itself does not depend on these IDs.
+    window_size_bp :
+        Physical window size in base pairs. Each chromosome is partitioned
+        into consecutive windows of this size; markers falling in the same
+        window belong to the same block (subject to ``max_block_size``).
+    max_block_size :
+        Maximum number of markers per block. If a window contains more
+        markers than this, it is split into multiple consecutive blocks.
+
+    Returns
+    -------
+    DataFrame with columns marker_id, chromosome, position, ld_block_id.
+    """
+    # Accept training IDs to stay consistent with the fit_ld_blocks API,
+    # but intentionally do not use them for boundary decisions.
+    _ = set(train_genotype_ids)
+
+    marker_meta = sort_markers(genotype_marker_df)
+    if marker_meta.empty:
+        return marker_meta.assign(ld_block_id=pd.Series([], dtype=str))
+
+    block_ids = []
+    current_chromosome = None
+    current_window_idx = -1
+    current_block_in_window = 0
+    current_block_size = 0
+
+    for _, row in marker_meta.iterrows():
+        chromosome = row["chromosome"]
+        position = int(row["position"])
+        window_idx = position // window_size_bp
+
+        new_chromosome = chromosome != current_chromosome
+        new_window = window_idx != current_window_idx
+
+        if new_chromosome or new_window or current_block_size >= max_block_size:
+            if new_chromosome or new_window:
+                current_window_idx = window_idx
+                current_block_in_window = 0
+            else:
+                current_block_in_window += 1
+            current_chromosome = chromosome
+            current_block_size = 0
+
+        block_ids.append(f"{chromosome}_w{window_idx}_b{current_block_in_window}")
+        current_block_size += 1
+
+    return marker_meta.assign(ld_block_id=block_ids)
+
+
 def tokenize_genotype_blocks(
     genotype_marker_df: pd.DataFrame, block_assignment: pd.DataFrame
 ) -> pd.DataFrame:
